@@ -1,6 +1,6 @@
 package com.fleetmaster.fleetmaster_car;
 
-/**
+/**Part of the apps system as things like tools etc.
  * Created by Thomas on 24.06.2017.
  */
 

@@ -8,24 +8,31 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.nfc.NdefMessage;
 import android.nfc.NfcAdapter;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.speech.tts.TextToSpeech;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
+import org.java_websocket.WebSocket;
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.handshake.ServerHandshake;
+
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-/**
+/**Activity to handle the things that can be done with an Van.
  * Created by Thomas on 23.06.2017.
  */
 
@@ -43,6 +50,7 @@ public class VanActivity  extends AppCompatActivity implements LocationListener 
     private NfcAdapter nfcAdapter;
     private PendingIntent nfcPendingIntent;
     public Location location;
+    private WebSocketClient mWebSocketClient;
     private static final String TAG = "NFC";
 
 
@@ -72,6 +80,8 @@ public class VanActivity  extends AppCompatActivity implements LocationListener 
             // initialize NFC
             nfcAdapter = NfcAdapter.getDefaultAdapter(this);
             nfcPendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, this.getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
+            // initialize websocket
+            connectWebSocket();
         } catch (Exception e) {
             LagerActivity.displayToast(e.getMessage(), this.getApplicationContext());
         }
@@ -88,48 +98,60 @@ public class VanActivity  extends AppCompatActivity implements LocationListener 
                         intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
 
                 if (rawMessages != null) {
-                    String id = new String(((NdefMessage) rawMessages[0]).getRecords()[0].getPayload()).substring(3);
+                    String id = new String(((NdefMessage) rawMessages[0]).getRecords()[0].getPayload());
+                    Toast.makeText(this, "id " + id,
+                            Toast.LENGTH_LONG).show();
+                    if(id.length()>3) {
+                        if (id.substring(1, 3).equals("en")) {
+                            id = id.substring(3);
+                        }
+                    }
                     String lagerid = this.lager.id;
-
+                    Toast.makeText(this, "id " + id,
+                            Toast.LENGTH_LONG).show();
 
                     double latitude = 49.011253 + (Math.random()*0.01)-0.02;
                     double longitude = 8.424899 + (Math.random()*0.01)-0.02;
-                    TextToSpeech ttobj = null;
-
                     if (this.isBuchen) {
                         this.pushDataToServer(lagerid, id, longitude, latitude);
                     } else if (this.istMittelkonsole) {
                         Toast.makeText(this, "Liegt auf der Mittelkonsole",
                                 Toast.LENGTH_SHORT).show();
                     } else if (this.istVordertuer) {
-                        if (id.equals(this.lager.id)) {
-                            Toast.makeText(this, "Door unlocked!",
-                                    Toast.LENGTH_SHORT).show();
-                            try {
 
-                                final TextToSpeech finalTtobj = ttobj;
-                                ttobj = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
-                                    @Override
-                                    public void onInit(int status) {
-                                        //finalTtobj.setLanguage(Locale.GERMANY);
-                                        //finalTtobj.speak("Access granted", TextToSpeech.QUEUE_FLUSH, null);
-                                    }
-                                });
+                            Retrofit retrofit = new Retrofit.Builder()
+                                    .baseUrl("http://martinshare.com/api/van.php/checkuser/")
+                                    .build();
+                            FleetMasterServerRequest service = retrofit.create(FleetMasterServerRequest.class);
+                            service.checkUser(id, lagerid).enqueue(new Callback<ResponseBody>() {
+                                @Override
+                                public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
 
-                            } catch (Exception e) {
-                                Toast.makeText(this, e.getMessage(),
-                                        Toast.LENGTH_SHORT).show();
+                                }
+
+                                @Override
+                                public void onFailure(Call<ResponseBody> call, Throwable t) {
+
+                                }
+                            });
+
+                            Toast.makeText(this, "Door unlocked! "   + "id " + id + " "+ lagerid,
+                                    Toast.LENGTH_LONG).show();
+                            boolean carTone = mWebSocketClient.getReadyState() == WebSocket.READYSTATE.OPEN;
+                            if(carTone) {
+                                carToneAndLight();
+                            } else {
+                                LagerActivity.generateTone(400);
                             }
-                            LagerActivity.generateTone(400);
 
                         } else {
                             Toast.makeText(this, "Wrong input!  " + id + " " + this.lager.id,
-                                    Toast.LENGTH_SHORT).show();
+                                    Toast.LENGTH_LONG).show();
                         }
 
                     }
                 }
-            }
+
 
         } catch (Exception e) {
             LagerActivity.displayToast("some error " + e.getMessage(), this);
@@ -149,16 +171,29 @@ public class VanActivity  extends AppCompatActivity implements LocationListener 
         repos.enqueue(new Callback<List<Objekt>>() {
             @Override
             public void onResponse(Call<List<Objekt>> call, Response<List<Objekt>> response) {
-                if(response.body().get(0).getTyp().equals("in")) {
-                    LagerActivity.generateTone(200);
+                boolean carTone = mWebSocketClient.getReadyState() == WebSocket.READYSTATE.OPEN;
+                if (response.body().get(0).getTyp().equals("in")) {
+                    if (carTone) {
+                        carToneAndLight();
+                    } else {
+                        LagerActivity.generateTone(200);
+                    }
                 } else {
-                    LagerActivity.generateTone(200);
+                    if (carTone) {
+                        carToneAndLight();
+                    } else {
+                        LagerActivity.generateTone(200);
+                    }
                     try {
                         Thread.sleep(500);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    LagerActivity.generateTone(200);
+                    if (carTone) {
+                        carToneAndLight();
+                    } else {
+                        LagerActivity.generateTone(200);
+                    }
                 }
             }
 
@@ -172,6 +207,53 @@ public class VanActivity  extends AppCompatActivity implements LocationListener 
                 .build();
         service.updateLagerPos(lagerid, String.valueOf(longitude), String.valueOf(latitude));
         Log.d("errormessage",repos.toString());
+    }
+
+    public void carToneAndLight()  {
+        this.startCarTone();
+        this.startCarLight();
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        this.stopCarTone();
+        this.stopCarLight();
+    }
+
+    private void startCarLight() {
+        try {
+            this.sendMessage("{\"action\":\"Set\", \"path\":\"Signal.Body.Lights.IsHighBeamOn\", \"value\":\"true\", \"requestId\":\"af6b2f9e-d7ca-461c-95d4-2c52078e4b57\"}");
+        } catch (Exception e) {
+            Toast.makeText(this, "Exception" + e.getMessage() + " " + (this.mWebSocketClient!=null),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void stopCarLight() {
+        try {
+            this.sendMessage("{\"action\":\"Set\", \"path\":\"Signal.Body.Lights.IsHighBeamOn\", \"value\":\"false\", \"requestId\":\"af6b2f9e-d7ca-461c-95d4-2c52078e4b57\"}");
+        } catch (Exception e) {
+            Toast.makeText(this, "Exception" + e.getMessage() + " " + (this.mWebSocketClient!=null),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void startCarTone() {
+        try {
+            this.sendMessage("{\"action\":\"Set\", \"path\":\"Signal.Cabin.Buzzer\", \"value\":\"true\", \"requestId\":\"af6b2f9e-d7ca-461c-95d4-2c52078e4b55\"}");
+        } catch (Exception e) {
+            Toast.makeText(this, "Exception" + e.getMessage() + " " + (this.mWebSocketClient!=null),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+    private void stopCarTone() {
+        try {
+            this.sendMessage("{\"action\":\"Set\", \"path\":\"Signal.Cabin.Buzzer\", \"value\":\"false\", \"requestId\":\"af6b2f9e-d7ca-461c-95d4-2c52078e4b56\"}");
+        } catch (Exception e) {
+            Toast.makeText(this, "Exception" + e.getMessage() + " " + (this.mWebSocketClient!=null),
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     /* Request updates at startup */
@@ -237,7 +319,7 @@ public class VanActivity  extends AppCompatActivity implements LocationListener 
         // TODO vergleiche nfc übertragenes zeugs mit dem lager.getHash
         Context context = this.getApplicationContext();
         CharSequence text = this.lager.name + " auto entsperren";
-        int duration = Toast.LENGTH_SHORT;
+        int duration = Toast.LENGTH_LONG;
         Toast toast = Toast.makeText(context, text, duration);
         toast.show();
         this.isBuchen = false;
@@ -255,5 +337,51 @@ public class VanActivity  extends AppCompatActivity implements LocationListener 
         this.isBuchen = false;
         this.istVordertuer = false;
         this.istMittelkonsole = true;
+    }
+
+    private void connectWebSocket() {
+        URI uri;
+        try {
+            uri = new URI("ws://172.16.0.1:4443/websocket");
+        } catch (URISyntaxException e) {
+            Toast.makeText(this, e.getMessage(),
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        mWebSocketClient = new WebSocketClient(uri) {
+            @Override
+            public void onOpen(ServerHandshake serverHandshake) {
+                Log.i("Websocket", "Opened");
+                mWebSocketClient.send("Hello from " + Build.MANUFACTURER + " " + Build.MODEL);
+            }
+
+            @Override
+            public void onMessage(String s) {
+                final String message = s;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+
+                    }
+                });
+            }
+
+            @Override
+            public void onClose(int i, String s, boolean b) {
+                Log.i("Websocket", "Closed " + s);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.i("Websocket", "Error " + e.getMessage());
+            }
+        };
+        mWebSocketClient.connect();
+    }
+
+    public void sendMessage(String message) {
+        mWebSocketClient.send(message);
+
     }
 }

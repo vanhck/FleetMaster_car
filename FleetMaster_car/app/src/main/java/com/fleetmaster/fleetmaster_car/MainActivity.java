@@ -18,6 +18,9 @@ import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
+/**
+ * Entrance in the app. Gives the opportunity to choose a storage part to represent.
+ */
 public class MainActivity extends AppCompatActivity {
 
     private String serverAnswer = "";

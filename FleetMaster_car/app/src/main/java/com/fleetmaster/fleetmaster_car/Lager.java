@@ -3,7 +3,7 @@ package com.fleetmaster.fleetmaster_car;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-/**
+/** Object to handle storage capacities in the system. Used as pojo-element for the json-api.
  * Created by Thomas on 23.06.2017.
  */
 

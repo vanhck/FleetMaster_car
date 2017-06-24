@@ -24,6 +24,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
+import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
@@ -54,6 +55,7 @@ public class LagerActivity extends AppCompatActivity implements LocationListener
     private NfcAdapter nfcAdapter;
     private PendingIntent nfcPendingIntent;
     public Location location;
+    private boolean buzzing = false;
 
     private LocationManager locationManager;
     private String provider;
@@ -153,16 +155,29 @@ public class LagerActivity extends AppCompatActivity implements LocationListener
         repos.enqueue(new Callback<List<Objekt>>() {
             @Override
             public void onResponse(Call<List<Objekt>> call, Response<List<Objekt>> response) {
+                boolean carTone = mWebSocketClient.getReadyState() == WebSocket.READYSTATE.OPEN;
                 if(response.body().get(0).getTyp().equals("in")) {
-                    LagerActivity.generateTone(200);
+                    if(carTone) {
+                        carToneAndLight();
+                    } else {
+                        LagerActivity.generateTone(200);
+                    }
                 } else {
-                    LagerActivity.generateTone(200);
+                    if(carTone) {
+                        carToneAndLight();
+                    } else {
+                        LagerActivity.generateTone(200);
+                    }
                     try {
                         Thread.sleep(500);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    LagerActivity.generateTone(200);
+                    if(carTone) {
+                        carToneAndLight();
+                    } else {
+                        LagerActivity.generateTone(200);
+                    }
                 }
             }
 
@@ -172,37 +187,64 @@ public class LagerActivity extends AppCompatActivity implements LocationListener
             }
         });
         Log.d("errormessage",repos.toString());
+
+    }
+
+    public void carToneAndLight()  {
+        this.startCarTone();
+        this.startCarLight();
         try {
-            this.generateCarAction();
-            Toast.makeText(this, "Succesfully sended command!",
-                    Toast.LENGTH_SHORT).show();
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        this.stopCarTone();
+        this.stopCarLight();
+    }
+
+    private void startCarLight() {
+        try {
+            this.sendMessage("{\"action\":\"Set\", \"path\":\"Signal.Body.Lights.IsHighBeamOn\", \"value\":\"true\", \"requestId\":\"af6b2f9e-d7ca-461c-95d4-2c52078e4b57\"}");
         } catch (Exception e) {
-            Toast.makeText(this, e.getMessage() + " " + (this.mWebSocketClient!=null),
+            Toast.makeText(this, "Exception" + e.getMessage() + " " + (this.mWebSocketClient!=null),
                     Toast.LENGTH_SHORT).show();
         }
     }
 
+    private void stopCarLight() {
+        try {
+            this.sendMessage("{\"action\":\"Set\", \"path\":\"Signal.Body.Lights.IsHighBeamOn\", \"value\":\"false\", \"requestId\":\"af6b2f9e-d7ca-461c-95d4-2c52078e4b57\"}");
+        } catch (Exception e) {
+            Toast.makeText(this, "Exception" + e.getMessage() + " " + (this.mWebSocketClient!=null),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void startCarTone() {
+        try {
+            this.sendMessage("{\"action\":\"Set\", \"path\":\"Signal.Cabin.Buzzer\", \"value\":\"true\", \"requestId\":\"af6b2f9e-d7ca-461c-95d4-2c52078e4b55\"}");
+        } catch (Exception e) {
+            Toast.makeText(this, "Exception" + e.getMessage() + " " + (this.mWebSocketClient!=null),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+    private void stopCarTone() {
+        try {
+            this.sendMessage("{\"action\":\"Set\", \"path\":\"Signal.Cabin.Buzzer\", \"value\":\"false\", \"requestId\":\"af6b2f9e-d7ca-461c-95d4-2c52078e4b56\"}");
+        } catch (Exception e) {
+            Toast.makeText(this, "Exception" + e.getMessage() + " " + (this.mWebSocketClient!=null),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
     public static void generateTone(int duration) {
         ToneGenerator toneG = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
         toneG.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, duration); // 200 is duration in ms
 
     }
 
-
-    private void generateCarAction() {
-        this.sendMessage( "some request");
-    }
-
     public void buchen(View view) {
         LagerActivity.displayToast("buchen", this.getApplicationContext());
-        try {
-            this.generateCarAction();
-            Toast.makeText(this, "Succesfully sended command!",
-                    Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            Toast.makeText(this, e.getMessage() + " " + (this.mWebSocketClient!=null),
-                    Toast.LENGTH_SHORT).show();
-        }
+
     }
 
     public static void displayToast(String message, Context context) {
