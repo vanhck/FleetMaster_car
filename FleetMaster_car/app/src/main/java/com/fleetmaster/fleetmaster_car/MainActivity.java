@@ -1,17 +1,13 @@
 package com.fleetmaster.fleetmaster_car;
 
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.LinearLayoutCompat;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ExpandableListView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
                     for(Lager lager : response.body()) {
                         MainActivity.lagerListe.add(lager);
                         Button button = new Button(MainActivity.appContext);
-                        button.setText(lager.getName());
+                        button.setText(lager.name);
                         button.setOnClickListener(MainActivity.listener);
                         MainActivity.buttonContainer.addView(button);
                     }
@@ -96,8 +92,8 @@ public class MainActivity extends AppCompatActivity {
         public void onClick(View v) {
             Button buttonClicked = (Button) v ;
             for(Lager lager : this.mainActivity.lagerListe) {
-                if(buttonClicked.getText().equals(lager.getName())) {
-                    if(lager.getTyp().equals("Van")) {
+                if(buttonClicked.getText().equals(lager.name)) {
+                    if(lager.typ.equals("Van")) {
                         Intent intent = new Intent(this.mainActivity, VanActivity.class);
                         intent.putExtra("LAGER", lager);
                         startActivity(intent);

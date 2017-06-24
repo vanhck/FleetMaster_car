@@ -9,31 +9,23 @@ import android.os.Parcelable;
 
 public class Lager implements Parcelable
 {
-    private String lon;
+    public String id;
 
-    private String hash;
+    public String name;
 
-    private String name;
-
-    private String typ;
-
-    private String lat;
+    public String typ;
 
     protected Lager(Parcel in) {
-        lon = in.readString();
-        hash = in.readString();
+        id = in.readString();
         name = in.readString();
         typ = in.readString();
-        lat = in.readString();
     }
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        dest.writeString(lon);
-        dest.writeString(hash);
+        dest.writeString(id);
         dest.writeString(name);
         dest.writeString(typ);
-        dest.writeString(lat);
     }
 
     @Override
@@ -53,59 +45,10 @@ public class Lager implements Parcelable
         }
     };
 
-    public String getLon ()
-    {
-        return lon;
-    }
-
-    public void setLon (String lon)
-    {
-        this.lon = lon;
-    }
-
-    public String getHash ()
-    {
-        return hash;
-    }
-
-    public void setHash (String hash)
-    {
-        this.hash = hash;
-    }
-
-    public String getName ()
-    {
-        return name;
-    }
-
-    public void setName (String name)
-    {
-        this.name = name;
-    }
-
-    public String getTyp ()
-    {
-        return typ;
-    }
-
-    public void setTyp (String typ)
-    {
-        this.typ = typ;
-    }
-
-    public String getLat ()
-    {
-        return lat;
-    }
-
-    public void setLat (String lat)
-    {
-        this.lat = lat;
-    }
 
     @Override
     public String toString()
     {
-        return "ClassPojo [lon = "+lon+", hash = "+hash+", name = "+name+", typ = "+typ+", lat = "+lat+"]";
+        return "ClassPojo [lagerid = "+id+", name = "+name+", typ = "+typ+"]";
     }
 }
