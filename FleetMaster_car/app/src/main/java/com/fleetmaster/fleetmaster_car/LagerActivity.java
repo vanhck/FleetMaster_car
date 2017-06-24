@@ -195,6 +195,14 @@ public class LagerActivity extends AppCompatActivity implements LocationListener
 
     public void buchen(View view) {
         LagerActivity.displayToast("buchen", this.getApplicationContext());
+        try {
+            this.generateCarAction();
+            Toast.makeText(this, "Succesfully sended command!",
+                    Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, e.getMessage() + " " + (this.mWebSocketClient!=null),
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     public static void displayToast(String message, Context context) {
@@ -254,10 +262,10 @@ public class LagerActivity extends AppCompatActivity implements LocationListener
     private void connectWebSocket() {
         URI uri;
         try {
-            uri = new URI("172.16.0.1:4443");
+            uri = new URI("ws://172.16.0.1:4443/websocket");
         } catch (URISyntaxException e) {
             Toast.makeText(this, e.getMessage(),
-                    Toast.LENGTH_SHORT).show();
+                    Toast.LENGTH_LONG).show();
             return;
         }
 
